@@ -33,9 +33,12 @@ IOS_DEPLOYMENT_TARGET = "13.0"
 CREATE_ORG = "cn.leanpath"
 CREATE_PROJECT_NAME = "app"
 
+# 注意：android/app/build.gradle.kts 刻意不覆盖，保留 Flutter 生成的模板。
+# Flutter 3.47 / AGP 9 把旧 `android {}` / `kotlinOptions {}` DSL 的弃用用法
+# 升级为编译错误，自定义脚本会直接让 Gradle script compilation 失败。
+# 签名改由 CI 通过 android/gradle.properties 的 android.injected.signing.* 注入。
 CUSTOM_FILES = (
     "android/app/src/main/AndroidManifest.xml",
-    "android/app/build.gradle.kts",
     "android/app/proguard-rules.pro",
     "android/app/src/main/kotlin/cn/leanpath/app/MainActivity.kt",
     "ios/Runner/Info.plist",

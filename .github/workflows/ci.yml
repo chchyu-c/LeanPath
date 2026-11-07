@@ -68,7 +68,7 @@ jobs:
   build_ios:
     name: iOS 冒烟构建（Debug，免签名）
     needs: quality
-    runs-on: macos-14
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2

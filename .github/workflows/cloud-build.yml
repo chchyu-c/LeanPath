@@ -95,7 +95,7 @@ jobs:
   ios:
     name: iOS 云端编译（免签名）
     if: ${{ github.event_name == 'push' || inputs.platform != 'android' }}
-    runs-on: macos-14
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

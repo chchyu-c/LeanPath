@@ -41,20 +41,25 @@ git push -u origin main
 
 ## 四、关键设计：CI 自己生成原生壳
 
-仓库里只提交了我们定制的 `AndroidManifest.xml`、`build.gradle.kts`、`MainActivity.kt`、
+仓库里只提交了我们定制的 `AndroidManifest.xml`、`MainActivity.kt`、
 `Info.plist`、`AppDelegate.swift`，**没有** `flutter create` 生成的 gradle wrapper、
 `Runner.xcodeproj`、Podfile 等壳文件。直接编译必然失败。
 
 `scripts/prepare_native_shells.py` 解决这个问题：
 
 ```
-1. 快照 6 个定制文件的字节内容
+1. 快照 5 个定制文件的字节内容
 2. 在系统临时空目录执行 flutter create --org cn.leanpath --project-name app
    （--org + --project-name 组合得到的 applicationId / Bundle ID 正好是 cn.leanpath.app）
 3. 只把临时项目的 android/ 与 ios/ 拷回仓库（不碰 pubspec.yaml / lib/ / i18n/）
 4. patch Runner.xcodeproj 的 PRODUCT_BUNDLE_IDENTIFIER 与 IPHONEOS_DEPLOYMENT_TARGET=13.0，
    并取消注释 Podfile 的 platform
-5. 恢复 6 个定制文件，覆盖 Flutter 默认模板
+5. 恢复 5 个定制文件，覆盖 Flutter 默认模板
+
+> `android/app/build.gradle.kts` 刻意**不覆盖**，保留 Flutter 生成的模板：
+> Flutter 3.47 / AGP 9 会把旧 `android {}` / `kotlinOptions {}` DSL 的弃用用法
+> 升级为 script compilation error。正式签名改由 CI 写入 `android/gradle.properties`
+> 的 `android.injected.signing.*` 注入，无需自定义 Gradle 脚本。
 ```
 
 在**临时目录**生成而不在项目根跑 `flutter create`，是因为后者会重写 `pubspec.yaml`
@@ -78,11 +83,11 @@ git push -u origin main
 | 产物 | 签名 | 能做什么 |
 |---|---|---|
 | debug APK | Android 默认 debug key | 直接装 Android 真机测试 |
-| release APK / AAB | **debug key**（零密钥时 `build.gradle.kts` 自动回退） | 内测、验证 release 混淆；**不能上架**，商店会拒绝 debug 签名 |
+| release APK / AAB | **debug key**（零密钥时使用 Flutter 模板默认 debug 签名） | 内测、验证 release 混淆；**不能上架**，商店会拒绝 debug 签名 |
 | LeanPath-unsigned.ipa | 未签名 | 仅证明 iOS 编译通过、供后续重签名；**不能装真机**，也不是模拟器包 |
 | release.yml 的 IPA / AAB | 正式签名 | 提审上架，需 Secrets |
 
-iOS 编译跑在 `macos-14` Runner 上（Linux 无法编译 iOS）；GitHub Actions 的 macOS
+iOS 编译跑在 `macos-latest` Runner 上（Linux 无法编译 iOS）；GitHub Actions 的 macOS
 分钟数与免费额度不同，若开通了 push 触发会消耗较多，可删掉 `cloud-build.yml` 里的
 `push` 段改为纯手动触发。
 

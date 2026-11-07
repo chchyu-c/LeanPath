@@ -54,15 +54,16 @@ jobs:
       - run: flutter pub get
       - run: flutter gen-l10n
       - name: 从 Secrets 恢复签名配置（不落仓库）
+        # AGP 原生支持 android.injected.signing.* 注入签名，
+        # 无需自定义 build.gradle.kts（Flutter 3.47 / AGP 9 会拒绝旧 DSL 写法）。
         run: |
           echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > android/app/release.jks
-          cat > android/key.properties <<EOF
-          storeFile=release.jks
-          storePassword=$ANDROID_KEYSTORE_PASSWORD
-          keyAlias=$ANDROID_KEY_ALIAS
-          keyPassword=$ANDROID_KEY_PASSWORD
+          cat >> android/gradle.properties <<EOF
+          android.injected.signing.store.file=$(pwd)/android/app/release.jks
+          android.injected.signing.store.password=$ANDROID_KEYSTORE_PASSWORD
+          android.injected.signing.key.alias=$ANDROID_KEY_ALIAS
+          android.injected.signing.key.password=$ANDROID_KEY_PASSWORD
           EOF
-          chmod 600 android/key.properties
       - name: 构建 AAB（商店提审主产物）
         run: flutter build appbundle --release
       - name: 构建分架构 APK（国内商店 / 内测分发）
@@ -89,11 +90,11 @@ jobs:
         run: bundle install && bundle exec fastlane android_china_stores
       - name: 清理本机敏感文件
         if: always()
-        run: rm -f android/app/release.jks android/key.properties
+        run: rm -f android/app/release.jks android/gradle.properties
 
   ios_release:
     name: iOS 签名构建与 TestFlight / 提审
-    runs-on: macos-14
+    runs-on: macos-latest
     env:
       IOS_BUNDLE_ID: cn.leanpath.app
       IOS_SCHEME: Runner

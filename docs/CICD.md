@@ -55,7 +55,7 @@ base64 -w0 cert.p12 > cert.b64
      `scripts/prepare_native_shells.py` 在临时目录生成并恢复定制配置；
    - **模式 B**：本地执行
      `flutter create --platforms=android,ios --org cn.leanpath.app --project-name leanpath .`，
-     把本仓库的 `AndroidManifest.xml`、`build.gradle.kts`、`MainActivity.kt`、
+     把本仓库的 `AndroidManifest.xml`、`MainActivity.kt`、
      `proguard-rules.pro`、`Info.plist`、`AppDelegate.swift` 覆盖回去后提交壳工程，
      脚本检测到壳已存在会跳过生成。适合需要自定义 Xcode Signing 的场景。
 4. iOS 正式签名：用 Xcode 打开 `ios/Runner.xcworkspace` 设置 Team / Bundle ID
