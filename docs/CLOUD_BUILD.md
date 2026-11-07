@@ -104,6 +104,7 @@ iOS 编译跑在 `macos-14` Runner 上（Linux 无法编译 iOS）；GitHub Acti
 |---|---|
 | `flutter: command not found` | 该 job 缺少 `subosito/flutter-action` 步骤 |
 | `pub get` 版本冲突 | `pubspec.yaml` 插件版本是参考基线，按 pub.dev 最新稳定版调整 |
+| `pub get` 报 `intl ... version solving failed` | `flutter_localizations` 随 Flutter stable 升级会改变 `intl` 约束（当前 stable 为 `^0.20.3`）；同步修改 `pubspec.yaml` 的 `intl` 版本 |
 | CocoaPods 报最低版本过低 | 调 `prepare_native_shells.py` 里的 `IOS_DEPLOYMENT_TARGET` |
 | Xcode signing 失败（release） | 补 `APPLE_TEAM_ID` / 描述文件名，或用 Xcode 本地补全 Signing 后走模式 B |
 | `gen-l10n` 报错 | 检查 `.arb` 是否合法 JSON、是否含 `@@locale` |
