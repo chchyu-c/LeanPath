@@ -1,4 +1,17 @@
 include: package:flutter_lints/flutter.yaml
+
+# docs/ 与 store-listing/ 下的是示例骨架与文案，不是生产代码；
+# lib/l10n/ 是 gen-l10n 生成物。三者都不应进入 flutter analyze 范围，
+# 否则示例文件里的占位变量会被当成未定义标识符导致 analyze 失败。
+analyzer:
+  exclude:
+    - "docs/**"
+    - "store-listing/**"
+    - "lib/l10n/**"
+    - "build/**"
+    - "**/*.g.dart"
+    - "**/*.freezed.dart"
+
 linter:
   rules:
     prefer_const_constructors: true
