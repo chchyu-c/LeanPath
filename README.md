@@ -1,23 +1,28 @@
 # 轻计划 LeanPath
 
-Flutter 双端（Android + iOS）减肥路径规划 App：生成每日计划 → 到点闹铃式提醒 →
-手机自动感知你是否在运动 → 识别不到也能一键打卡。中国大陆首发，全部数据留在本机。
+Flutter 双端（Android + iOS）减肥路径规划 App：生成每日计划与**内置饮食方案** →
+运动闹铃 + 三餐提前提醒 → 手机自动感知你是否在运动、饮食按计划打卡 →
+统计有多少天按计划执行、哪些天没按计划。中国大陆首发，全部数据留在本机。
 
 > 本仓库是**文件级工程产物**：本机无 Android SDK / Xcode / Flutter SDK，未执行真实编译、
 > 打包或提审。但**云端编译链路已配好**，代码推到 GitHub 后无需任何本地 SDK 或密钥即可在
 > Runner 上编出双端产物，详见 `docs/CLOUD_BUILD.md`。
 
-## 已实现的四个功能
+## 已实现的功能
 
 | 功能 | 关键文件 |
 |---|---|
 | 减肥路径规划（渐进加量、周休、称重、参考曲线） | `lib/services/plan_engine.dart`、`lib/models/plan.dart` |
+| **内置饮食计划**：3 套方案 × 7 天循环 × 每日三餐，创建计划时按目标节奏推荐 | `lib/services/diet_presets.dart`、`lib/services/diet_engine.dart`、`lib/models/diet.dart` |
+| **三餐提前提醒**：可配置三餐时间与提前分钟数，通知里直接打卡 | `lib/services/notification_service.dart`、`lib/ui/meal_reminder_settings_page.dart` |
+| **饮食执行统计**：按计划 / 未按计划天数、未按计划日期清单、执行日历、连续天数 | `lib/ui/diet_page.dart`、`docs/DIET_PLAN.md` |
 | 每日定时提醒 + 闹铃（精确闹钟、全屏提醒、通知按钮、稍后提醒） | `lib/services/notification_service.dart`、`android/app/src/main/AndroidManifest.xml`、`ios/Runner/AppDelegate.swift` |
 | 手机感知「正在做这件事」（计步 + 活动状态，窗口内采样） | `lib/services/activity_sensing_service.dart` |
 | 打卡兜底（传感器/手动/通知三种来源、连续天数、完成率） | `lib/services/check_in_service.dart`、`lib/services/plan_store.dart` |
 
-界面：`lib/ui/`（首页 / 计划设置 / 提醒设置），状态编排：`lib/state/plan_controller.dart`，
-中英文案：`i18n/l10n/*.arb`。
+界面：`lib/ui/`（首页 / 计划设置 / 运动提醒设置 / 饮食计划 / 三餐提醒设置），
+状态编排：`lib/state/plan_controller.dart`，中英文案：`i18n/l10n/*.arb`。
+单元测试：`test/plan_engine_test.dart`、`test/diet_plan_test.dart`。
 
 ## 快速开始：两种方式
 
@@ -80,7 +85,7 @@ android/ · ios/          定制的原生配置（壳工程由 CI 或本地生�
 scripts/                 prepare_native_shells.py：云端生成/恢复原生壳
 .github/workflows/       cloud-build.yml（云端编译）· ci.yml · release.yml
 fastlane/                Fastfile / Gemfile / Appfile
-docs/                    架构、云端编译、CI/CD、权限、隐私、国内上架、审核清单、功能开关、埋点
+docs/                    架构、饮食计划(DIET_PLAN.md)、云端编译、CI/CD、权限、隐私、国内上架、审核清单、功能开关、埋点
 store-listing/           china/（首发用）· app-store/ · google-play/（出海参考）
 ```
 
@@ -112,16 +117,18 @@ store-listing/           china/（首发用）· app-store/ · google-play/（�
 
 ## 下一步（需人工或 CI 执行）
 
-- [ ] 创建 GitHub 仓库并推送代码，手动跑一次 `cloud-build` 验证云端编译
+- [x] 代码已推送到 `chchyu-c/LeanPath`，`ci` 与 `cloud-build` 双端云端编译均已跑通
+      （成功 Run：`42383575437` / `42383575334`）
+- [ ] 饮食计划改动推送后再跑一轮 `cloud-build`，确认新代码双端构建通过
 - [ ] 需要正式签名包时：生成 Android keystore、配置 GitHub Secrets、跑通 `v0.9.0-beta.1`
 - [ ] Xcode 补全 Signing（方式 B / release 的 iOS 签名需要）
 - [ ] 补齐 `docs/PRIVACY.md` 待办：隐私政策页、双清单、数据导出/删除入口
 - [ ] 启动软著与 App 备案；按 `store-listing/china/metadata.md` 产出图标/截图
-- [ ] 华为/小米/OPPO/vivo 真机验证：锁屏准点响铃、重启恢复、通知按钮打卡
-- [ ] 补单元测试（PlanEngine 边界值、打卡连续天数）与 Maestro E2E
+- [ ] 华为/小米/OPPO/vivo 真机验证：锁屏准点响铃、三餐提前提醒准时、重启恢复、通知按钮打卡
+- [x] 计划引擎与饮食模块单元测试已补齐；[ ] Maestro E2E 待做
 
 ## 能力边界
 
-本环境没有 Android SDK / Xcode / Flutter SDK，也没有 GitHub 凭据，因此**不能在此直接触发
-真实构建**。所有编译、签名、提审需在你的开发机或 CI Runner 上执行。证书、keystore、私钥
-一律只给配置方式与环境变量引用，仓库内不含任何明文密钥。
+本开发机没有 Android SDK / Xcode / Flutter SDK，**真实编译、签名与提审都在 GitHub Actions
+Runner 或你的开发机上完成**；本仓库通过 REST Git Data API 推送代码并读取 CI 日志。
+证书、keystore、私钥一律只给配置方式与环境变量引用，仓库内不含任何明文密钥。

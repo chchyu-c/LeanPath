@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../l10n/app_localizations.dart';
+import '../models/diet.dart';
 import '../models/plan.dart';
 import '../services/activity_sensing_service.dart';
 import '../state/plan_controller.dart';
+import 'diet_page.dart';
 import 'plan_setup_page.dart';
 import 'reminder_settings_page.dart';
 
@@ -16,10 +18,29 @@ class HomePage extends StatelessWidget {
     final l = AppLocalizations.of(context);
     final c = context.watch<PlanController>();
 
+    // 点击三餐通知进入 App 时，自动打开饮食页并清掉待处理标记。
+    if (c.focusMealKey != null &&
+        (ModalRoute.of(context)?.isCurrent ?? false)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!context.mounted) return;
+        c.clearFocus();
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(builder: (_) => const DietPage()),
+        );
+      });
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: Text(l.appTitle),
         actions: [
+          IconButton(
+            tooltip: l.dietTitle,
+            icon: const Icon(Icons.restaurant_menu),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const DietPage()),
+            ),
+          ),
           IconButton(
             tooltip: l.reminderSettings,
             icon: const Icon(Icons.alarm),
@@ -95,6 +116,8 @@ class _PlanView extends StatelessWidget {
         Text(l.planTitle, style: theme.textTheme.headlineSmall),
         const SizedBox(height: 12),
         _ProgressCard(l: l, plan: plan, rate: rate),
+        const SizedBox(height: 12),
+        _DietOverviewCard(c: c, l: l),
         const SizedBox(height: 16),
         Text(l.todayTask, style: theme.textTheme.titleMedium),
         const SizedBox(height: 8),
@@ -130,6 +153,39 @@ class _PlanView extends StatelessWidget {
               color: theme.colorScheme.onSurfaceVariant),
         ),
       ],
+    );
+  }
+}
+
+class _DietOverviewCard extends StatelessWidget {
+  const _DietOverviewCard({required this.c, required this.l});
+
+  final PlanController c;
+  final AppLocalizations l;
+
+  @override
+  Widget build(BuildContext context) {
+    final log = c.dietLog;
+    if (log == null) return const SizedBox.shrink();
+    final stats = log.stats();
+    final today = DateTime.now();
+    final followedToday = MealType.values
+        .where((type) =>
+            log.recordOn(today, type)?.status == MealStatus.followed)
+        .length;
+
+    return Card(
+      child: ListTile(
+        leading: const Icon(Icons.restaurant_outlined),
+        title: Text(l.dietTitle),
+        subtitle: Text('${l.dietTodayMeals} $followedToday/3 · '
+            '${l.dietFollowedDays} ${stats.followedDays} ${l.days} · '
+            '${l.dietOffPlanDays} ${stats.offPlanDays} ${l.days}'),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute<void>(builder: (_) => const DietPage()),
+        ),
+      ),
     );
   }
 }

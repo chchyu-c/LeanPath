@@ -25,14 +25,17 @@ Flutter 只需把 `AlarmManager` / `UNUserNotificationCenter` / `CMPedometer`
 lib/
 ├── main.dart                      # 入口：初始化、Provider、生命周期重排
 ├── models/plan.dart               # DailyTask / WeightPlan / ReminderSettings
+├── models/diet.dart               # DietLog / MealRecord / 执行统计 / 三餐提醒设置
 ├── services/
 │   ├── plan_engine.dart           # 纯函数：生成 N 天渐进式减肥路径
-│   ├── plan_store.dart            # 离线持久化（SharedPreferences + JSON）
-│   ├── notification_service.dart  # 精确闹钟 / 本地通知 / 操作按钮 / 权限
+│   ├── diet_presets.dart          # 内置 3 套 × 7 天 × 三餐 方案（内容数据，中英双语）
+│   ├── diet_engine.dart           # 纯函数：创建计划时的方案推荐
+│   ├── plan_store.dart            # 离线持久化（运动 + 饮食，SharedPreferences + JSON）
+│   ├── notification_service.dart  # 精确闹钟 / 三餐提前提醒 / 操作按钮 / 权限
 │   ├── activity_sensing_service.dart # 计步 + 活动状态 → 感知判定
 │   └── check_in_service.dart      # 打卡兜底、连续天数、完成率
-├── state/plan_controller.dart     # 编排层：把四个服务串成一条业务流
-├── ui/                           # 首页 / 计划设置 / 提醒设置
+├── state/plan_controller.dart     # 编排层：运动与饮食两条业务流汇合
+├── ui/                           # 首页 / 计划设置 / 运动提醒 / 饮食计划 / 三餐提醒
 └── l10n/                         # gen-l10n 生成物（不提交）
 i18n/l10n/*.arb                   # 中英文案源
 android/ · ios/                   # 原生壳（flutter create 生成 + 本仓库配置覆盖）
@@ -40,7 +43,7 @@ android/ · ios/                   # 原生壳（flutter create 生成 + 本仓�
 docs/ · store-listing/            # 合规、架构、上架素材
 ```
 
-## 三、四个功能怎么实现
+## 三、五个功能怎么实现
 
 ### 1. 减肥路径规划
 `PlanEngine.generate()`：输入起始/目标体重、天数、基础步数 → 生成每日任务。
@@ -89,6 +92,28 @@ minSteps = clamp(今日目标步数 × 0.15, 60, 400)
    → 用户点「完成打卡」→ 写本地 → 重排通知（跳过已完成任务）
 ```
 
+### 5. 饮食计划（v1.1 新增）
+
+与运动计划**平行**的一条数据流，不改动 `WeightPlan` 结构：
+
+```
+内置方案(常量) → DietEngine.recommend / buildLog → DietLog(本机)
+                                                  ↓
+三餐提醒设置 → NotificationService._scheduleMeals → 通知按钮 → PlanController.recordMeal
+                                                  ↓
+                                    DietLog.stats() → 饮食页统计 / 日历 / 首页概览
+```
+
+- **内置**：3 套方案 × 7 天循环 × 三餐，纯 Dart 常量，不联网、不读健康平台。
+- **推荐**：按每周目标减重速率与基础步数选方案，理由在计划创建页明示，可随时改选。
+- **提醒**：用餐时间 − 提前分钟数；独立 `leanpath_meal` 通道、普通通知（非闹铃），
+  iOS 7 天 × 4 = 28、Android 14 天 × 4 = 56 条，均在 64 上限内。
+- **统计**：只统计截至昨天的已结束日期，三餐全 `followed` 才算按计划执行；
+  「按计划天数 + 未按计划天数 = 已结束天数」，并列出未按计划的具体日期。
+- **迁移**：旧版本用户有运动计划但无饮食日志时，启动时自动补一份默认方案。
+
+完整设计见 `docs/DIET_PLAN.md`。
+
 ## 四、双端差异对照（实现与审核风险）
 
 | 项 | Android | iOS |
@@ -102,7 +127,8 @@ minSteps = clamp(今日目标步数 × 0.15, 60, 400)
 
 ## 五、隐私与安全基线
 
-- 体重、步数、打卡记录**全部留在本机**，不上传、不接第三方统计 SDK（MVP）。
+- 体重、步数、饮食打卡记录**全部留在本机**，不上传、不接第三方统计 SDK（MVP）。
+  饮食方案是内置静态内容，不采集用户实际摄入、不拍照、不读取 Health Connect / HealthKit。
 - 权限「用时申请 + 申请前弹窗说明目的」，拒绝后功能降级而非退出。
 - release 开启 R8 混淆与资源压缩；日志不含健康数据。
 - 后续若接入云同步：需单独同意、HTTPS + 证书绑定、敏感字段加密、境内存储、账号注销与数据导出。
@@ -111,7 +137,7 @@ minSteps = clamp(今日目标步数 × 0.15, 60, 400)
 
 | 层级 | 内容 | 命令 / 工具 |
 |---|---|---|
-| 单元 | `PlanEngine` 边界值、`CheckInService` 连续天数、`SensingVerdict` 判定 | `flutter test` |
+| 单元 | `PlanEngine` 边界值、`DietEngine` 推荐分支、`DietLog` 统计口径与序列化、`MealReminderSettings` 跨天提醒、`CheckInService` 连续天数 | `flutter test` |
 | Widget | 首页空态 / 有任务 / 感知状态 / 打卡按钮 | `flutter test` |
 | 静态 | `flutter analyze`、`dart format` | CI `quality` job |
 | E2E | 通知触发 → 打卡 → 次日提醒跳过 | Maestro（建议后续补） |
@@ -126,4 +152,7 @@ minSteps = clamp(今日目标步数 × 0.15, 60, 400)
 2. Android 部分深度定制 ROM 仍可能延迟精确闹钟 → 需按品牌做白名单引导与实测。
 3. 无账号/云同步 → 换机数据丢失；后续可接境内 BaaS（`docs/baas-optional` 为可选骨架，
    注意 Supabase 国内需自托管或替换）。
-4. 计划引擎目前是通用规则，未做个性化（年龄/性别/基础代谢）；健康类算法上线前建议由专业营养/运动人员复核。
+4. 计划引擎与饮食方案目前是通用规则，未做个性化（年龄/性别/基础代谢/过敏原）；
+   健康类算法与菜单上线前建议由专业营养/运动人员复核，且必须保留免责声明。
+5. 饮食执行统计基于用户主动打卡，未按计划 ≠ 实际没按计划吃（可能是忘记记录）；
+   UI 用「未记录」与「未按计划」两种状态区分，不做自动判定。

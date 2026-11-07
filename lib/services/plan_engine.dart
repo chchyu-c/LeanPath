@@ -8,12 +8,16 @@ class PlanInput {
   final double targetWeightKg;
   final int baseStepGoal;
 
+  /// 用户在创建页选定的饮食方案；为空时由 DietEngine 按目标节奏推荐。
+  final String? dietPresetId;
+
   const PlanInput({
     required this.startDate,
     required this.days,
     required this.startWeightKg,
     required this.targetWeightKg,
     this.baseStepGoal = 6000,
+    this.dietPresetId,
   });
 }
 
