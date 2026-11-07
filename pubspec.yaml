@@ -1,0 +1,32 @@
+name: leanpath
+description: 轻计划 - 减肥路径规划、每日闹铃提醒与运动感知打卡
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+# 依赖版本为参考基线（2026 年稳定版区间）。首次执行 `flutter pub get`
+# 若提示版本不存在或冲突，请以 pub.dev 上各插件的最新稳定版为准调整。
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  provider: ^6.1.1
+  intl: ^0.19.0
+  shared_preferences: ^2.2.3
+  flutter_local_notifications: ^17.0.0
+  timezone: ^0.9.4
+  permission_handler: ^11.3.0
+  pedometer: ^4.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
+  generate: true   # 启用 gen-l10n，读取根目录 l10n.yaml

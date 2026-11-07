@@ -1,0 +1,6 @@
+source "https://rubygems.org"
+
+# 中国大陆 CI 若访问 rubygems 较慢，可改用镜像源：
+# source "https://gems.ruby-china.com"
+
+gem "fastlane", "~> 2.219"

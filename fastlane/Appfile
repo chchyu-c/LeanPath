@@ -1,0 +1,4 @@
+app_identifier(ENV["IOS_BUNDLE_ID"] || "cn.leanpath.app")
+apple_id(ENV["APPLE_ID"]) if ENV["APPLE_ID"]
+itc_team_id(ENV["ASC_TEAM_ID"]) if ENV["ASC_TEAM_ID"]
+team_id(ENV["APPLE_TEAM_ID"]) if ENV["APPLE_TEAM_ID"]

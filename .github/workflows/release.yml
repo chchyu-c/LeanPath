@@ -1,0 +1,157 @@
+name: release
+
+# 中国大陆首发：Android 产出签名 AAB + 分架构 APK（供国内商店提审），
+# iOS 产出 IPA 并上传 TestFlight（中国区 App Store 同样走 App Store Connect）。
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      ios_track:
+        description: iOS 发布动作
+        required: true
+        default: beta
+        type: choice
+        options: [beta, release]
+
+permissions:
+  contents: read
+
+jobs:
+  android_release:
+    name: Android 签名构建与分发
+    runs-on: ubuntu-latest
+    env:
+      ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+      PGYER_API_KEY: ${{ secrets.PGYER_API_KEY }}
+      HUAWEI_CLIENT_ID: ${{ secrets.HUAWEI_CLIENT_ID }}
+      HUAWEI_CLIENT_SECRET: ${{ secrets.HUAWEI_CLIENT_SECRET }}
+      HUAWEI_APP_ID: ${{ secrets.HUAWEI_APP_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: 校验签名 Secrets
+        run: |
+          if [ -z "$ANDROID_KEYSTORE_BASE64" ]; then
+            echo "::error::未配置 ANDROID_KEYSTORE_BASE64，无法签名发布包。"
+            exit 1
+          fi
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: 生成 / 补齐原生壳（保留定制配置）
+        run: python3 scripts/prepare_native_shells.py
+      - run: flutter pub get
+      - run: flutter gen-l10n
+      - name: 从 Secrets 恢复签名配置（不落仓库）
+        run: |
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > android/app/release.jks
+          cat > android/key.properties <<EOF
+          storeFile=release.jks
+          storePassword=$ANDROID_KEYSTORE_PASSWORD
+          keyAlias=$ANDROID_KEY_ALIAS
+          keyPassword=$ANDROID_KEY_PASSWORD
+          EOF
+          chmod 600 android/key.properties
+      - name: 构建 AAB（商店提审主产物）
+        run: flutter build appbundle --release
+      - name: 构建分架构 APK（国内商店 / 内测分发）
+        run: flutter build apk --release --split-per-abi
+      - name: 归档产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-release-${{ github.ref_name }}
+          path: |
+            build/app/outputs/bundle/release/app-release.aab
+            build/app/outputs/flutter-apk/*-release.apk
+          if-no-files-found: error
+          retention-days: 30
+      - name: 蒲公英内测分发（可选）
+        if: ${{ env.PGYER_API_KEY != '' }}
+        run: |
+          APK=$(ls build/app/outputs/flutter-apk/*armeabi-v7a-release.apk | head -n 1)
+          curl -sS --fail \
+            -F "file=@$APK" \
+            -F "_api_key=$PGYER_API_KEY" \
+            https://www.pgyer.com/apiv2/app/upload
+      - name: 国内商店自动提审（可选，需凭据）
+        if: ${{ env.HUAWEI_CLIENT_ID != '' }}
+        run: bundle install && bundle exec fastlane android_china_stores
+      - name: 清理本机敏感文件
+        if: always()
+        run: rm -f android/app/release.jks android/key.properties
+
+  ios_release:
+    name: iOS 签名构建与 TestFlight / 提审
+    runs-on: macos-14
+    env:
+      IOS_BUNDLE_ID: cn.leanpath.app
+      IOS_SCHEME: Runner
+      IOS_PROFILE_NAME: ${{ secrets.IOS_PROFILE_NAME }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      IOS_CERTIFICATE_P12_BASE64: ${{ secrets.IOS_CERTIFICATE_P12_BASE64 }}
+      IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+      IOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
+      KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: 生成 / 补齐原生壳（保留定制配置）
+        run: python3 scripts/prepare_native_shells.py
+      - run: flutter pub get
+      - run: flutter gen-l10n
+      - name: 预热 iOS 原生依赖（Pods / Generated.xcconfig）
+        run: flutter build ios --release --no-codesign
+      - name: 导入签名证书与描述文件
+        run: |
+          security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security set-keychain-settings -t 3600 -u build.keychain
+          echo "$IOS_CERTIFICATE_P12_BASE64" | base64 -d > /tmp/leanpath-cert.p12
+          security import /tmp/leanpath-cert.p12 -k build.keychain \
+            -P "$IOS_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: \
+            -s -k "$KEYCHAIN_PASSWORD" build.keychain
+          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+          echo "$IOS_PROVISIONING_PROFILE_BASE64" | base64 -d \
+            > "$HOME/Library/MobileDevice/Provisioning Profiles/leanpath-release.mobileprovision"
+          rm -f /tmp/leanpath-cert.p12
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: false
+      - name: TestFlight / 提审
+        run: |
+          bundle install
+          if [ "${{ github.event.inputs.ios_track }}" = "release" ]; then
+            bundle exec fastlane ios_release
+          else
+            bundle exec fastlane ios_beta
+          fi
+      - name: 归档 IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-release-${{ github.ref_name }}
+          path: build/ios/*.ipa
+          if-no-files-found: warn
+          retention-days: 30

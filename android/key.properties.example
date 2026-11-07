@@ -1,0 +1,7 @@
+# 示例文件：复制为 key.properties 后填写本机路径，key.properties 必须加入 .gitignore。
+# CI 环境由 GitHub Actions 用 Secrets 动态生成此文件（见 docs/CICD.md）。
+# 切勿把 keystore 文件、别名口令或任何私钥明文提交到仓库。
+storeFile=../release.jks
+storePassword=REPLACE_ME
+keyAlias=leanpath
+keyPassword=REPLACE_ME

@@ -1,0 +1,53 @@
+# Flutter / Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.build/
+build/
+*.iml
+.idea/
+.vscode/
+# App 项目应提交 pubspec.lock 以保证 CI 可复现构建，故不忽略。
+
+# 生成物：flutter gen-l10n 在 CI / 本地生成
+lib/l10n/
+
+# Android 原生
+android/.gradle/
+android/local.properties
+android/key.properties
+android/app/release.jks
+android/app/debug.keystore
+*.jks
+*.keystore
+
+# iOS 原生
+ios/Pods/
+ios/.symlinks/
+ios/DerivedData/
+ios/Flutter/App.framework
+ios/Flutter/Flutter.framework
+ios/Flutter/Generated.xcconfig
+ios/Flutter/flutter_export_environment.sh
+*.p12
+*.p8
+*.mobileprovision
+.DS_Store
+
+# 签名与密钥：绝不入库
+*.env
+.env.*
+!*.env.example
+**/secrets/
+
+# 云端编译脚本 / 本地临时产物
+__pycache__/
+*.pyc
+Payload/
+
+# fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/
+fastlane/test_output/
+vendor/bundle/

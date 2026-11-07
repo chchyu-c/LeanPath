@@ -1,0 +1,100 @@
+fastlane_version "2.219.0"
+
+# 中国大陆首发版本：
+# - Android 不调用 upload_to_play_store（Google Play 不可用），产出签名 AAB/APK
+#   后交由国内各应用商店开放平台；华为可通过 Publishing API 自动化，其余多需后台上传。
+# - iOS 仍走 App Store Connect / TestFlight，但中国区上架需先完成 App 备案。
+# 所有敏感值只从环境变量读取，CI 由 GitHub Secrets 注入，仓库内不落任何私钥。
+
+default_platform(:android)
+
+def asc_api_key
+  app_store_connect_api_key(
+    key_id: ENV["ASC_KEY_ID"],
+    issuer_id: ENV["ASC_ISSUER_ID"],
+    key_content: ENV["ASC_PRIVATE_KEY"],
+    is_key_content_base64: false
+  )
+end
+
+platform :android do
+  desc "单元测试"
+  lane :android_test do
+    sh("flutter", "test")
+  end
+
+  desc "构建签名 AAB + 分架构 APK（签名来自 android/key.properties）"
+  lane :android_build do
+    sh("flutter", "pub", "get")
+    sh("flutter", "gen-l10n")
+    sh("flutter", "build", "appbundle", "--release")
+    sh("flutter", "build", "apk", "--release", "--split-per-abi")
+  end
+
+  desc "国内商店分发：华为可走 Publishing API，其余输出人工提审指引"
+  lane :android_china_stores do
+    aab = Dir["build/app/outputs/bundle/release/*.aab"].first
+    UI.user_error!("未找到 release AAB，请先执行 android_build") unless aab
+    UI.message("签名 AAB: #{aab}")
+
+    if File.exist?("scripts/huawei_upload.py")
+      sh("python3", "scripts/huawei_upload.py", aab)
+      UI.success("华为应用市场上传完成")
+    else
+      UI.important("未提供 scripts/huawei_upload.py，跳过华为自动上传。")
+    end
+
+    # 小米 / OPPO / vivo / 应用宝 没有统一的 fastlane action，
+    # 不写假的上传逻辑：从 CI Artifacts 下载后按 docs/CHINA_RELEASE.md 提审。
+    UI.important("其余商店请在各自开放平台后台手动上传 APK/AAB 并提交审核。")
+  end
+
+  desc "上传蒲公英做内测分发"
+  lane :android_pgyer do
+    UI.user_error!("缺少 PGYER_API_KEY") unless ENV["PGYER_API_KEY"]
+    apk = Dir["build/app/outputs/flutter-apk/*release*.apk"].first
+    UI.user_error!("未找到 release APK，请先执行 android_build") unless apk
+    sh(
+      "curl", "-sS", "--fail",
+      "-F", "file=@#{apk}",
+      "-F", "_api_key=#{ENV['PGYER_API_KEY']}",
+      "https://www.pgyer.com/apiv2/app/upload"
+    )
+  end
+end
+
+platform :ios do
+  desc "构建 IPA 并上传 TestFlight（中国区 App Store 同样适用）"
+  lane :ios_beta do
+    api_key = asc_api_key
+    gym(
+      scheme: ENV["IOS_SCHEME"] || "Runner",
+      export_method: "app-store",
+      clean: true,
+      output_directory: "build/ios",
+      output_name: "LeanPath.ipa",
+      export_options: {
+        signingStyle: "manual",
+        teamID: ENV["APPLE_TEAM_ID"],
+        provisioningProfiles: {
+          (ENV["IOS_BUNDLE_ID"] || "cn.leanpath.app") =>
+            (ENV["IOS_PROFILE_NAME"] || "LeanPath AppStore")
+        }
+      }
+    )
+    pilot(
+      api_key: api_key,
+      ipa: "build/ios/LeanPath.ipa",
+      skip_waiting_for_build_processing: true
+    )
+  end
+
+  desc "上传构建；中国区正式提审需在 App Store Connect 补备案号后手动提交"
+  lane :ios_release do
+    ios_beta
+    UI.important(
+      "构建已进入 TestFlight。请在 App Store Connect 选择该构建、填写 App 备案号、" \
+      "补全隐私政策与分级后提交审核（见 docs/CHINA_RELEASE.md）。"
+    )
+  end
+end
