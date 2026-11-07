@@ -100,6 +100,48 @@ def patch_ios_project() -> None:
         print(f"  patched Podfile platform ({n})")
 
 
+def patch_android_gradle() -> None:
+    """flutter_local_notifications 依赖 Java 8 时间 API，AGP 要求开启 desugaring。
+
+    Flutter 3.47 生成的默认 build.gradle.kts 没有开启，直接构建会在
+    :app:checkDebugAarMetadata 阶段报 "requires core library desugaring"。
+    这里在模板基础上做幂等注入，避免自定义 Gradle 脚本与 AGP 9 新 DSL 冲突。
+    """
+    path = ROOT / "android/app/build.gradle.kts"
+    if not path.is_file():
+        return
+    text = path.read_text(encoding="utf-8")
+
+    if "isCoreLibraryDesugaringEnabled" not in text:
+        if "compileOptions {" in text:
+            text = text.replace(
+                "compileOptions {",
+                "compileOptions {\n        isCoreLibraryDesugaringEnabled = true",
+                1,
+            )
+        else:
+            text = text.replace(
+                "android {",
+                "android {\n    compileOptions {\n"
+                "        isCoreLibraryDesugaringEnabled = true\n"
+                "        sourceCompatibility = JavaVersion.VERSION_17\n"
+                "        targetCompatibility = JavaVersion.VERSION_17\n"
+                "    }",
+                1,
+            )
+
+    if "coreLibraryDesugaring(" not in text:
+        text += (
+            "\n// flutter_local_notifications 需要 Java 8 时间 API 脱糖\n"
+            "dependencies {\n"
+            '    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")\n'
+            "}\n"
+        )
+
+    path.write_text(text, encoding="utf-8")
+    print("  patched Android Gradle desugaring")
+
+
 def generate_shell() -> None:
     flutter = shutil.which("flutter")
     if flutter is None:
@@ -165,6 +207,8 @@ def main() -> int:
         print("[prepare] 正在临时目录生成原生壳 ...")
         generate_shell()
 
+    # 无论壳是新生成还是本地已提交，都要保证 desugaring 已开启。
+    patch_android_gradle()
     restore(saved)
     print("[prepare] 完成。下一步：flutter pub get && flutter gen-l10n")
     return 0

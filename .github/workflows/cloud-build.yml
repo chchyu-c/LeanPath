@@ -109,10 +109,8 @@ jobs:
         run: python3 scripts/prepare_native_shells.py ${{ inputs.regenerate_shell && '--force' || '' }}
       - run: flutter pub get
       - run: flutter gen-l10n
-      - name: CocoaPods 依赖
-        run: |
-          cd ios
-          pod install
+      # 不单独跑 pod install：Flutter build ios 会自行处理 Podfile 与最低部署目标，
+      # 显式执行反而会因 "Flutter pod requires a higher minimum deployment target" 失败。
       - name: 编译 iOS（免签名）
         run: flutter build ios --${{ inputs.build_mode || 'debug' }} --no-codesign
       - name: 打包未签名 IPA

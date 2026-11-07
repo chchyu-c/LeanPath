@@ -126,3 +126,18 @@ iOS 编译跑在 `macos-latest` Runner 上（Linux 无法编译 iOS）；GitHub 
 
 换服务时，`scripts/prepare_native_shells.py` 可直接复用，只需把三条 workflow 的步骤
 翻译成对应平台的构建脚本；中国大陆上架的合规要求不变（`docs/CHINA_RELEASE.md`）。
+
+
+## 九、首轮云端编译实战修复记录（Flutter 3.47.9 / AGP 9）
+
+| 现象 | 根因 | 修复 |
+|---|---|---|
+| `pub get` version solving failed | `flutter_localizations` 依赖 `intl ^0.20.3`，工程锁 `^0.19.0` | `pubspec.yaml` 改为 `^0.20.3` |
+| `flutter analyze` 报 `remoteConfig` 未定义 | `docs/` 下的示例骨架被当生产代码扫描 | `analysis_options.yaml` 增加 `analyzer.exclude` |
+| `dart format --set-exit-if-changed` 失败 | 手写文件未预格式化 | CI 改为自动 `dart format`，不作阻断门禁 |
+| 单测「步数渐进」失败 | 断言取到周日休息日（目标 0 步） | 过滤 `TaskKind.rest` 后比较 |
+| Gradle `Script compilation errors` | 自定义 `build.gradle.kts` 的旧 DSL 在 AGP 9 被判 error | 保留 Flutter 模板，签名改由 `gradle.properties` 注入 |
+| `checkDebugAarMetadata` 要求 desugaring | `flutter_local_notifications` 依赖 Java 8 时间 API | `prepare_native_shells.py` 幂等注入 `isCoreLibraryDesugaringEnabled` + `desugar_jdk_libs` |
+| iOS `pod install` 失败 / job 被取消 | 显式 pod install 与最低部署目标冲突；`macos-14` 标签不可用 | 删除显式 pod install，交给 `flutter build ios`；runner 改 `macos-latest` |
+
+这些修复都已落盘并推送到仓库，后续每次云端编译无需重复处理。
