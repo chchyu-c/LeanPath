@@ -28,13 +28,16 @@ void main() {
       expect(plan.days, 28);
     });
 
-    test('步数目标渐进增加', () {
+    test('步数目标渐进增加（跳过休息日）', () {
       final plan = engine.generate(input());
-      final mainTasks =
-          plan.tasks.where((t) => t.id.endsWith('-main')).toList()
-            ..sort((a, b) => a.date.compareTo(b.date));
-      expect(mainTasks.last.targetSteps,
-          greaterThan(mainTasks.first.targetSteps));
+      final activeTasks = plan.tasks
+          .where(
+              (t) => t.id.endsWith('-main') && t.kind != TaskKind.rest)
+          .toList()
+        ..sort((a, b) => a.date.compareTo(b.date));
+      expect(activeTasks.length, greaterThan(1));
+      expect(activeTasks.last.targetSteps,
+          greaterThan(activeTasks.first.targetSteps));
     });
 
     test('参考体重曲线是线性插值', () {
