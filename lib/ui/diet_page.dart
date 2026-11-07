@@ -114,7 +114,7 @@ class DietPage extends StatelessWidget {
 }
 
 class _DietEmpty extends StatelessWidget {
-  const _DietEmpty({super.key, required this.l});
+  const _DietEmpty({required this.l});
 
   final AppLocalizations l;
 
@@ -145,7 +145,6 @@ class _DietEmpty extends StatelessWidget {
 
 class _DietBody extends StatelessWidget {
   const _DietBody({
-    super.key,
     required this.c,
     required this.log,
     required this.l,
@@ -244,7 +243,6 @@ class _DietBody extends StatelessWidget {
 
 class _PresetCard extends StatelessWidget {
   const _PresetCard({
-    super.key,
     required this.l,
     required this.lang,
     required this.log,
@@ -270,7 +268,6 @@ class _PresetCard extends StatelessWidget {
 
 class _Metric extends StatelessWidget {
   const _Metric({
-    super.key,
     required this.label,
     required this.value,
     required this.color,
@@ -298,7 +295,7 @@ class _Metric extends StatelessWidget {
 }
 
 class _StatsCard extends StatelessWidget {
-  const _StatsCard({super.key, required this.l, required this.stats});
+  const _StatsCard({required this.l, required this.stats});
 
   final AppLocalizations l;
   final DietStats stats;
@@ -362,7 +359,6 @@ class _StatsCard extends StatelessWidget {
 
 class _MealCard extends StatelessWidget {
   const _MealCard({
-    super.key,
     required this.c,
     required this.l,
     required this.lang,
@@ -446,7 +442,6 @@ class _MealCard extends StatelessWidget {
 
 class _DayCell extends StatelessWidget {
   const _DayCell({
-    super.key,
     required this.summary,
     required this.label,
     required this.onTap,
@@ -488,7 +483,7 @@ class _DayCell extends StatelessWidget {
 }
 
 class _OffPlanList extends StatelessWidget {
-  const _OffPlanList({super.key, required this.l, required this.stats});
+  const _OffPlanList({required this.l, required this.stats});
 
   final AppLocalizations l;
   final DietStats stats;

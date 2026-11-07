@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 
 import '../l10n/app_localizations.dart';
 import '../services/diet_engine.dart';
-import '../services/diet_presets.dart';
 import '../services/plan_engine.dart';
 import '../state/plan_controller.dart';
 

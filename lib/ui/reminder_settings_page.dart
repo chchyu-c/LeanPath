@@ -107,7 +107,8 @@ class _ReminderSettingsPageState extends State<ReminderSettingsPage> {
           FilledButton(
             onPressed: () async {
               await controller.updateSettings(_settings);
-              if (mounted) Navigator.of(context).pop();
+              if (!context.mounted) return;
+              Navigator.of(context).pop();
             },
             child: Text(l.save),
           ),

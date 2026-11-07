@@ -61,7 +61,7 @@ class _LeanPathAppState extends State<LeanPathApp>
           colorSchemeSeed: const Color(0xFF2E7D6B),
           brightness: Brightness.dark,
         ),
-        localizationsDelegates: [
+        localizationsDelegates: const [
           AppLocalizations.delegate,
           GlobalMaterialLocalizations.delegate,
           GlobalWidgetsLocalizations.delegate,

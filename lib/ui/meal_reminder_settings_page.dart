@@ -129,7 +129,8 @@ class _MealReminderSettingsPageState
           FilledButton(
             onPressed: () async {
               await controller.updateMealSettings(_settings);
-              if (mounted) Navigator.of(context).pop();
+              if (!context.mounted) return;
+              Navigator.of(context).pop();
             },
             child: Text(l.save),
           ),

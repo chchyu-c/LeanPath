@@ -1,8 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:leanpath/models/diet.dart';
-import 'package:leanpath/models/plan.dart';
 import 'package:leanpath/services/diet_engine.dart';
-import 'package:leanpath/services/diet_presets.dart';
 import 'package:leanpath/services/plan_engine.dart';
 
 void main() {
